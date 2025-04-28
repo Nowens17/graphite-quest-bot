@@ -1,5 +1,5 @@
-# bot.py - Graphite Quest Discord Bot for creating quests
-# This script sets up a Discord bot with a /quest create command and stores quest data in Neon (PostgreSQL).
+# bot.py - Graphite Quest Discord Bot for creating and listing quests
+# This script sets up a Discord bot with /quest create and /quest list commands, storing data in Neon (PostgreSQL).
 
 # Import required libraries
 import discord
@@ -78,6 +78,7 @@ async def quest_create(interaction: discord.Interaction, title: str, description
 async def quest_list(interaction: discord.Interaction):
     # Defer the response to avoid timeout while querying the database
     await interaction.response.defer()
+
     try:
         # Query all quests from the Neon 'quests' table, ordered by creation date
         query = sql.SQL("SELECT title, description, creator_id, points, created_at FROM quests ORDER BY created_at DESC")
@@ -98,23 +99,23 @@ async def quest_list(interaction: discord.Interaction):
                 creator = await client.fetch_user(int(creator_id))
                 creator_name = creator.display_name
             except discord.NotFound:
-                creator_name = f"User ID: {creator_id} (not found)"
-                qeury_list += (
-                    f"**Quest {index}: {title}**\n"
-                    f"Description: {description}\n"
-                    f"Created by: {creator_name}\n"
-                    f"Reward: {points} points\n"
-                    f"Posted on: {created_at.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-                )
+                creator_name = f"User ID {creator_id} (not found)"
+            # Add the quest details to the message
+            quest_list += (
+                f"**Quest {index}: {title}**\n"
+                f"Description: {description}\n"
+                f"Created by: {creator_name}\n"
+                f"Reward: {points} points\n"
+                f"Posted on: {created_at.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+            )
 
-            # Send the formatted list
-            await interaction.followup.send(quest_list)
+        # Send the formatted list
+        await interaction.followup.send(quest_list)
 
     except Exception as e:
-        # Handle any errors (e.g., database connection issues)
-        await interaction.followup.send(f"Woof! An error occurred: {str(e)}")
+        # Handle any errors (e.g., database query issues)
+        await interaction.followup.send(f"Woof! An error occurred while fetching quests: {str(e)}")
         print(f"Error in quest_list: {e}")
-
 
 # Run the bot using the Discord bot token from environment variables
 client.run(os.getenv("DISCORD_TOKEN"))
