@@ -31,7 +31,7 @@ async def on_ready():
     print(f"Woof! {client.user} (Graphite Quest) is online!")
     try:
         # Sync commands for a specific guild (faster and more reliable than global sync)
-        guild_id = YOUR_SERVER_ID  # Replace with your Discord server ID (e.g., from https://discord.gg/37tQBt5v)
+        guild_id = 1313303736147251230  # Replace with your Discord server ID (e.g., from https://discord.gg/37tQBt5v)
         guild = discord.Object(id=guild_id)
         # Sync commands for the specified guild
         tree.copy_global_to(guild=guild)
