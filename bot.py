@@ -227,7 +227,7 @@ async def quest_suggest(interaction: discord.Interaction, theme: str):
             return
 
         # Set up the Hugging Face API endpoint and headers
-        api_url = "https://api-inference.huggingface.co/models/gpt2"  # Switched to gpt2
+        api_url = "https://api-inference.huggingface.co/models/facebook/opt-125m"
         headers = {
             "Authorization": f"Bearer {api_token}",
             "Content-Type": "application/json"
