@@ -28,9 +28,14 @@ cursor = conn.cursor()
 async def on_ready():
     print(f"Woof! {client.user} (Graphite Quest) is online!")
     try:
-        # Sync slash commands with Discord
-        synced = await tree.sync()
-        print(f"Synced {len(synced)} command(s)")
+        # Sync commands for a specific guild (faster and more reliable than global sync)
+        guild_id = 1313303736147251230  # Replace with your Discord server ID
+        guild = discord.Object(id=guild_id)
+        # Sync commands for the specified guild
+        tree.copy_global_to(guild=guild)
+        synced = await tree.sync(guild=guild)
+        # Print the synced commands for debugging
+        print(f"Synced {len(synced)} command(s) for guild {guild_id}: {[cmd.name for cmd in synced]}")
     except Exception as e:
         print(f"Error syncing commands: {e}")
 
