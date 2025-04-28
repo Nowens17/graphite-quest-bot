@@ -1,5 +1,5 @@
-# bot.py - Graphite Quest Discord Bot for creating, listing, and claiming quests
-# This script sets up a Discord bot with /quest create, /quest list (with pagination), and /quest claim commands, storing data in Neon (PostgreSQL).
+# bot.py - Graphite Quest Discord Bot for creating, listing, claiming, and suggesting quests
+# This script sets up a Discord bot with /quest create, /quest list (with pagination), /quest claim, and /quest suggest commands, storing data in Neon (PostgreSQL).
 
 # Import required libraries
 import discord
@@ -8,6 +8,8 @@ import os
 from dotenv import load_dotenv  # Load environment variables from .env file
 import psycopg2  # PostgreSQL driver for Neon
 from psycopg2 import sql
+import requests  # For making API calls to Hugging Face
+import json
 
 # Load environment variables from .env file
 load_dotenv()
@@ -29,7 +31,7 @@ async def on_ready():
     print(f"Woof! {client.user} (Graphite Quest) is online!")
     try:
         # Sync commands for a specific guild (faster and more reliable than global sync)
-        guild_id = 1313303736147251230  # Replace with your Discord server ID (e.g., from https://discord.gg/37tQBt5v)
+        guild_id = YOUR_SERVER_ID  # Replace with your Discord server ID (e.g., from https://discord.gg/37tQBt5v)
         guild = discord.Object(id=guild_id)
         # Sync commands for the specified guild
         tree.copy_global_to(guild=guild)
@@ -206,6 +208,72 @@ async def quest_claim(interaction: discord.Interaction, quest_id: str):
         await interaction.followup.send(f"Woof! An error occurred while claiming the quest: {str(e)}")
         print(f"Error in quest_claim: {e}")
         conn.rollback()
+
+# Slash Command: /quest suggest
+# Suggests a quest idea based on a theme using Hugging Face's text generation API
+@tree.command(name="quest_suggest", description="Get a quest idea from Graphite!")
+@app_commands.describe(
+    theme="The theme for the quest (e.g., fantasy, sci-fi, adventure)"
+)
+async def quest_suggest(interaction: discord.Interaction, theme: str):
+    # Defer the response to avoid timeout while making the API call
+    await interaction.response.defer()
+
+    try:
+        # Get the Hugging Face API token from environment variables
+        api_token = os.getenv("HUGGINGFACE_TOKEN")
+        if not api_token:
+            await interaction.followup.send("Woof! My AI brain isn’t set up properly. Missing Hugging Face API token!")
+            return
+
+        # Set up the Hugging Face API endpoint and headers
+        api_url = "https://api-inference.huggingface.co/models/distilgpt2"
+        headers = {
+            "Authorization": f"Bearer {api_token}",
+            "Content-Type": "application/json"
+        }
+
+        # Create a prompt for the AI to generate a quest title and description
+        prompt = f"A {theme} quest: In a world of {theme}, a hero must "
+        payload = {
+            "inputs": prompt,
+            "parameters": {
+                "max_length": 100,
+                "num_return_sequences": 1,
+                "temperature": 0.9,
+                "top_p": 0.95
+            }
+        }
+
+        # Make the API call to Hugging Face
+        response = requests.post(api_url, headers=headers, data=json.dumps(payload))
+        response.raise_for_status()  # Raise an error for bad status codes
+        generated_text = response.json()[0]["generated_text"]
+
+        # Extract a title and description from the generated text
+        # Split the text into sentences and use the first as the title, the rest as the description
+        sentences = generated_text.replace(prompt, "").strip().split(". ")
+        title = sentences[0] if sentences else "A Mysterious Quest"
+        description = ". ".join(sentences[1:]) if len(sentences) > 1 else "Embark on a thrilling adventure!"
+
+        # Clean up the title and description (remove incomplete sentences)
+        if not description.endswith("."):
+            description = description.rsplit(" ", 1)[0] + "."
+        title = title[:50]  # Limit title length for readability
+        description = description[:200]  # Limit description length
+
+        # Send the suggestion
+        await interaction.followup.send(
+            f"Woof! I’ve sniffed out a quest idea for you, {interaction.user.mention}!\n"
+            f"**{title}** (Theme: {theme})\n"
+            f"Description: {description}\n"
+            f"Use /quest create to add it with your own points!"
+        )
+
+    except Exception as e:
+        # Handle any errors (e.g., API failure, network issues)
+        await interaction.followup.send(f"Woof! My AI brain got confused: {str(e)}")
+        print(f"Error in quest_suggest: {e}")
 
 # Run the bot using the Discord bot token from environment variables
 client.run(os.getenv("DISCORD_TOKEN"))
